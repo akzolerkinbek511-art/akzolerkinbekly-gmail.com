@@ -1,0 +1,149 @@
+openapi: 3.0.3
+info:
+  title: FoodExpress API
+  version: 1.0.0
+  description: Онлайн тамақ жеткізу API
+servers:
+  - url: https://api.foodexpress.kz/v1
+paths:
+  /auth/login:
+    post:
+      summary: Кіру (OTP)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, otp]
+              properties:
+                phone: { type: string, example: "+77001234567" }
+                otp: { type: string, example: "123456" }
+      responses:
+        "200":
+          description: Сәтті
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+        "401":
+          description: Қате OTP
+  /restaurants:
+    get:
+      summary: Мейрамханалар тізімі
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+      responses:
+        "200":
+          description: Тізім
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Restaurant"
+                  total: { type: integer }
+  /orders:
+    post:
+      summary: Тапсырыс құру
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrder"
+      responses:
+        "201":
+          description: Құрылды
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Валидация қатесі
+  /orders/{id}:
+    get:
+      summary: Тапсырыс деталі
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Табылмады
+  /orders/{id}/pay:
+    post:
+      summary: Төлем
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method: { type: string, enum: [kaspi, halyk, card] }
+      responses:
+        "200":
+          description: Төлем сәтті
+        "402":
+          description: Төлем қабылданбады
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Restaurant:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        rating: { type: number }
+        is_open: { type: boolean }
+    CreateOrder:
+      type: object
+      required: [restaurant_id, items, address_id]
+      properties:
+        restaurant_id: { type: integer }
+        address_id: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              dish_id: { type: integer }
+              quantity: { type: integer }
+        promo_code: { type: string }
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string }
+        total_amount: { type: number }
+        created_at: { type: string, format: date-time }
